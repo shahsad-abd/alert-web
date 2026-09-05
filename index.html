@@ -1,0 +1,257 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>SOC Threat Intel</title>
+  <style>
+    * { box-sizing: border-box; }
+    :root { color-scheme: dark; }
+    body {
+      margin: 0;
+      min-height: 100vh;
+      font-family: "Segoe UI", Tahoma, sans-serif;
+      background: #171717;
+      color: #d4d4d4;
+    }
+    .shell { max-width: 1120px; margin: 0 auto; padding: 24px; }
+    h1 { margin: 0 0 6px; font-size: 24px; color: #f1f1f1; }
+    .subtitle { margin: 0 0 18px; color: #9c9c9c; font-size: 13px; }
+    .toolbar, .settings {
+      display: flex;
+      gap: 8px;
+      margin-bottom: 12px;
+      align-items: center;
+    }
+    input {
+      flex: 1;
+      min-width: 0;
+      padding: 11px 12px;
+      border: 1px solid #505050;
+      border-radius: 6px;
+      background: #252525;
+      color: #fff;
+      outline: none;
+    }
+    input:focus { border-color: #4ec9b0; }
+    button {
+      padding: 10px 14px;
+      border: 0;
+      border-radius: 6px;
+      background: #0e639c;
+      color: #fff;
+      font-weight: 600;
+      cursor: pointer;
+    }
+    button:hover { background: #1177bb; }
+    button:disabled { opacity: .55; cursor: wait; }
+    .secondary { background: #3a3a3a; }
+    .secondary:hover { background: #4a4a4a; }
+    #status-msg {
+      min-height: 20px;
+      margin: 6px 0 14px;
+      color: #f1d592;
+      font-size: 13px;
+      overflow-wrap: anywhere;
+    }
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 14px;
+      align-items: start;
+    }
+    .card {
+      padding: 16px;
+      border: 1px solid #343434;
+      border-radius: 8px;
+      background: #222;
+      box-shadow: 0 4px 12px rgba(0,0,0,.25);
+    }
+    .card.full { grid-column: 1 / -1; }
+    .card h3 {
+      margin: 0 0 12px;
+      padding-bottom: 8px;
+      border-bottom: 1px solid #3f3f3f;
+      color: #4ec9b0;
+      font-size: 16px;
+    }
+    .row {
+      display: flex;
+      justify-content: space-between;
+      gap: 16px;
+      margin-bottom: 8px;
+      font-size: 13px;
+    }
+    .label { color: #9cdcfe; font-weight: 600; }
+    .val { max-width: 70%; text-align: right; color: #ce9178; overflow-wrap: anywhere; }
+    .alert { color: #f44336; font-weight: 700; }
+    .clean { color: #4caf50; font-weight: 700; }
+    .muted { color: #aaa; font-size: 12px; }
+    .actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; }
+    #triage-loading { display: none; padding: 30px 8px; text-align: center; }
+    .spinner {
+      width: 42px;
+      height: 42px;
+      margin: 0 auto;
+      border: 4px solid #444;
+      border-top-color: #4ec9b0;
+      border-radius: 50%;
+      animation: spin .85s linear infinite;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    #triage-loading-text { margin-top: 12px; color: #f1d592; font-size: 14px; }
+    #triage-loading-subtext { margin-top: 6px; color: #999; font-size: 12px; }
+    #triage-error {
+      display: none;
+      margin-top: 10px;
+      padding: 10px;
+      border: 1px solid #7d3333;
+      border-radius: 5px;
+      background: #351f1f;
+      color: #ff9b9b;
+      font-size: 12px;
+    }
+    #triage-results { display: none; }
+    .section-heading {
+      margin: 18px 0 8px;
+      padding-bottom: 5px;
+      border-bottom: 1px solid #444;
+      color: #9cdcfe;
+      font-size: 13px;
+      font-weight: 600;
+    }
+    #triage-signatures { margin: 0; padding-left: 20px; font-size: 12px; }
+    #triage-signatures li { margin-bottom: 7px; }
+    #triage-screenshot {
+      display: none;
+      width: 100%;
+      max-height: 520px;
+      object-fit: contain;
+      border: 1px solid #555;
+      border-radius: 5px;
+      background: #111;
+    }
+    details {
+      margin-top: 10px;
+      border: 1px solid #444;
+      border-radius: 5px;
+      background: #181818;
+    }
+    summary { padding: 10px; cursor: pointer; color: #4ec9b0; font-size: 12px; font-weight: 600; }
+    .json {
+      max-height: 420px;
+      overflow: auto;
+      margin: 0;
+      padding: 12px;
+      border-top: 1px solid #444;
+      background: #0f0f0f;
+      color: #d4d4d4;
+      font-size: 11px;
+      line-height: 1.4;
+      white-space: pre-wrap;
+      word-break: break-word;
+    }
+    .config-note { font-size: 12px; color: #aaa; margin: -4px 0 14px; }
+    @media (max-width: 760px) {
+      .shell { padding: 14px; }
+      .grid { grid-template-columns: 1fr; }
+      .card.full { grid-column: auto; }
+      .toolbar, .settings { flex-direction: column; align-items: stretch; }
+      .row { flex-direction: column; gap: 3px; }
+      .val { max-width: 100%; text-align: left; }
+    }
+  </style>
+</head>
+<body>
+  <main class="shell">
+    <h1>SOC Threat Intel</h1>
+    <p class="subtitle">Paste an IP, domain, URL, or hash. API keys stay on your Cloudflare Worker, not in GitHub Pages.</p>
+
+    <div class="settings">
+      <input id="worker-url" type="url" placeholder="Cloudflare Worker URL, e.g. https://soc-intel-api.yourname.workers.dev">
+      <button id="save-worker-btn" class="secondary" type="button">Save Backend URL</button>
+    </div>
+    <div class="config-note">The backend URL is saved only in this browser's localStorage.</div>
+
+    <div class="toolbar">
+      <input id="ioc-input" type="text" placeholder="IP, Domain, URL, or Hash..." autocomplete="off">
+      <button id="search-btn" type="button">Analyze</button>
+      <button id="copy-btn" class="secondary" type="button">Copy Report</button>
+    </div>
+
+    <div id="status-msg"></div>
+
+    <section class="grid">
+      <div class="card" id="vt-card" style="display:none;">
+        <h3>VirusTotal Intelligence</h3>
+        <div class="row"><span class="label">Detection Ratio:</span><span class="val" id="vt-score">-</span></div>
+        <div class="row"><span class="label" id="vt-extra-label-1"></span><span class="val" id="vt-extra-value-1"></span></div>
+        <div class="row"><span class="label" id="vt-extra-label-2"></span><span class="val" id="vt-extra-value-2"></span></div>
+        <div class="row"><span class="label" id="vt-extra-label-3"></span><span class="val" id="vt-extra-value-3"></span></div>
+        <div class="actions"><button id="pivot-vt" class="secondary" type="button">Open VirusTotal</button></div>
+      </div>
+
+      <div class="card" id="shodan-card" style="display:none;">
+        <h3>Shodan Infrastructure</h3>
+        <div class="row"><span class="label">Organization:</span><span class="val" id="sho-org">-</span></div>
+        <div class="row"><span class="label">Open Ports:</span><span class="val" id="sho-ports">-</span></div>
+        <div class="row"><span class="label">CVE Vulns:</span><span class="val" id="sho-vulns">-</span></div>
+        <div class="actions"><button id="pivot-sh" class="secondary" type="button">Open Shodan</button></div>
+      </div>
+
+      <div class="card" id="abuse-card" style="display:none;">
+        <h3>AbuseIPDB Context</h3>
+        <div class="row"><span class="label">Confidence Score:</span><span class="val" id="ab-score">-</span></div>
+        <div class="row"><span class="label">Recent Reports:</span><span class="val" id="ab-reports">-</span></div>
+        <div class="row"><span class="label">ISP:</span><span class="val" id="ab-isp">-</span></div>
+        <div class="row"><span class="label">Tor Exit Node:</span><span class="val" id="ab-tor">-</span></div>
+        <div class="actions"><button id="pivot-ab" class="secondary" type="button">Open AbuseIPDB</button></div>
+      </div>
+
+      <div class="card full" id="triage-card" style="display:none;">
+        <h3>Triage Sandbox Analysis</h3>
+        <div id="triage-idle">
+          <div class="row"><span class="label">Target:</span><span class="val" id="triage-target">-</span></div>
+          <div class="muted">The target is submitted only when you click Run in Triage Sandbox.</div>
+          <div class="actions"><button id="triage-submit-btn" type="button">Run in Triage Sandbox</button></div>
+        </div>
+
+        <div id="triage-loading">
+          <div class="spinner"></div>
+          <div id="triage-loading-text">Submitting to Triage...</div>
+          <div id="triage-loading-subtext"></div>
+        </div>
+
+        <div id="triage-error"></div>
+
+        <div id="triage-results">
+          <div class="row"><span class="label">Status:</span><span class="val" id="triage-status">-</span></div>
+          <div class="row"><span class="label">Submitted IOC:</span><span class="val" id="triage-submitted-target">-</span></div>
+          <div class="row"><span class="label">Score:</span><span class="val" id="triage-score">-</span></div>
+          <div class="row"><span class="label">Families:</span><span class="val" id="triage-families">-</span></div>
+          <div class="row"><span class="label">Tags:</span><span class="val" id="triage-tags">-</span></div>
+          <div class="row"><span class="label">Sample ID:</span><span class="val" id="triage-id">-</span></div>
+
+          <div class="section-heading">Signatures</div>
+          <ul id="triage-signatures"></ul>
+
+          <div class="section-heading">Website Screenshot</div>
+          <div id="triage-screenshot-status" class="muted">Screenshot not available.</div>
+          <img id="triage-screenshot" alt="Triage URL screenshot">
+
+          <details open><summary>Full Overview JSON</summary><pre id="triage-overview" class="json"></pre></details>
+          <details><summary>Full Summary JSON</summary><pre id="triage-summary" class="json"></pre></details>
+          <div id="triage-behavioral"></div>
+          <details><summary>Full URLScan JSON</summary><pre id="triage-urlscan" class="json"></pre></details>
+
+          <div class="actions">
+            <button id="triage-open-btn" class="secondary" type="button">Open Full Triage Report</button>
+            <button id="triage-run-again-btn" type="button">Run Again</button>
+          </div>
+        </div>
+      </div>
+    </section>
+  </main>
+  <script src="app.js"></script>
+</body>
+</html>
